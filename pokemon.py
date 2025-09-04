@@ -41,10 +41,7 @@ new_rows = pd.DataFrame(all_pokemon)
 df_pokemon = pd.concat([df_pokemon, new_rows], ignore_index=True)
 print(df_pokemon)
 
-
 # https://pokeapi.co/api/v2/evolution-chain/14/
-# mssql+pyodbc://(localdb)\\MSSQLlocalDB/{database_name}?driver=ODBC+Driver+17+for+SQL+server
-
 
 engine = create_engine("mssql+pyodbc://(localdb)\\MSSQLLocalDB/Pokemon?driver=ODBC+Driver+17+for+SQL+Server")
 if not database_exists(engine.url):
@@ -53,8 +50,9 @@ if not database_exists(engine.url):
 df_pokemon.to_sql(name='pokemon', con=engine, if_exists='replace')
 
 with engine.connect() as conn:
-    conn.execute(text('SELECT * FROM pokemon;'))
-    conn.commit()
+    result = conn.execute(text('SELECT * FROM pokemon;'))
+    for row in result:
+        print(row)
 
 
 
