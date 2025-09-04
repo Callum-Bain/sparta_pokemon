@@ -1,4 +1,6 @@
-import sqlalchemy
+from sqlalchemy import create_engine, text
+from sqlalchemy_utils import database_exists, create_database
+import pyodbc
 import requests
 import pandas as pd
 from pprint import pprint
@@ -21,20 +23,38 @@ def request_data(url):
     raw_data.pop('cries')
     raw_data.pop('past_types')
     raw_data.pop('past_abilities')
+    raw_data.pop('moves')
+    raw_data.pop('stats')
+    raw_data.pop('types')
+    raw_data.pop('species')
+    raw_data.pop('abilities')
     return raw_data
 
 all_pokemon = []
-for i in range(1, 2):
+for i in range(1, 11):
     raw_data = request_data(f'https://pokeapi.co/api/v2/pokemon/{i}')
     all_pokemon.append(raw_data)
 
 pprint(all_pokemon[0])
-df_pokemon = pd.DataFrame(columns = ['id', 'name', 'height', 'weight', 'abilities', 'moves', 'stats', 'types'])
+df_pokemon = pd.DataFrame(columns = ['id', 'name', 'height', 'weight'])
 new_rows = pd.DataFrame(all_pokemon)
 df_pokemon = pd.concat([df_pokemon, new_rows], ignore_index=True)
-# print(df_pokemon.head(1))
-
-# pprint(pd.json_normalize(all_pokemon))
+print(df_pokemon)
 
 
 # https://pokeapi.co/api/v2/evolution-chain/14/
+# mssql+pyodbc://(localdb)\\MSSQLlocalDB/{database_name}?driver=ODBC+Driver+17+for+SQL+server
+
+
+engine = create_engine("mssql+pyodbc://(localdb)\\MSSQLLocalDB/Pokemon?driver=ODBC+Driver+17+for+SQL+Server")
+if not database_exists(engine.url):
+    create_database(engine.url)
+
+df_pokemon.to_sql(name='pokemon', con=engine, if_exists='replace')
+
+with engine.connect() as conn:
+    conn.execute(text('SELECT * FROM pokemon;'))
+    conn.commit()
+
+
+
