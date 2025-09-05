@@ -26,56 +26,78 @@ def fetch_multiple_pokemon(n=10):
 
 # Clean Raw JSON for Pokemon Table
 def clean_for_pokemon_table(raw_data):
-    return {
-        'id': raw_data['id'],
-        'name': raw_data['name'],
-        'height': raw_data['height'],
-        'weight': raw_data['weight']
-    }
+    pokemon_cleaned = []
+    for pokemon in raw_data:
+        pokemon_cleaned.append({
+            'id': pokemon['id'],
+            'name': pokemon['name'],
+            'height': pokemon['height'],
+            'weight': pokemon['weight']
+        })
+    df_pokemon = pd.DataFrame(pokemon_cleaned)
+    return df_pokemon
 
 # Clean Raw JSON for Type Tables
 def clean_for_type_table(raw_data):
-    type_set = set()
+    type_names = []
     pokemon_types = []
     for pokemon in raw_data:
         pokemon_id = pokemon['id']
         for type in pokemon['types']:
             type_name = type['type']['name']
-            type_url = type['type']['url']
-            type_id = int(type_url.strip("/").split("/")[-1])
-            slot = type['slot']
-            type_set.add((type_id, type_name))
+            type_names.append({'name': type_name})
             pokemon_types.append({
                 'pokemon_id': pokemon_id,
-                'type_id': type_id,
-                'slot': slot
+                'type_id': type_name
             })
-    df_type = pd.DataFrame(type_set, columns=['id', 'name']).sort_values('id')
+    df_type = pd.DataFrame(type_names).drop_duplicates().sort_values('name')
     df_pokemon_type = pd.DataFrame(pokemon_types)
     return df_type, df_pokemon_type
 
 # Clean Raw JSON for Abilities Tables
 def clean_for_abilities_tables(raw_data):
-    ability_set = set()
+    ability_names = []
     pokemon_abilities = []
     for pokemon in raw_data:
         pokemon_id = pokemon['id']
         for ability in pokemon['abilities']:
             ability_name = ability['ability']['name']
-            ability_url = ability['ability']['url']
-            ability_id = int(ability_url.strip("/").split("/")[-1])
-            slot = ability['slot']
-            is_hidden = ability['is_hidden']
-            ability_set.add((ability_id, ability_name))
+            ability_names.append({'name': ability_name})
             pokemon_abilities.append({
                 'pokemon_id': pokemon_id,
-                'ability_id': ability_id,
-                'slot': slot,
-                'is_hidden': is_hidden
+                'ability_name': ability_name
             })
-    df_ability = pd.DataFrame(ability_set, columns=['id', 'name']).sort_values('id')
+    df_ability = pd.DataFrame(ability_names).drop_duplicates().sort_values('name')
     df_pokemon_ability = pd.DataFrame(pokemon_abilities)
     return df_ability, df_pokemon_ability
+
+# Clean Raw JSON for Moves Tables
+def clean_for_moves_tables(raw_data):
+    move_names = []
+    pokemon_moves = []
+    for pokemon in raw_data:
+        pokemon_id = pokemon['id']
+        for move in pokemon['moves']:
+            move_name = move['move']['name']
+            move_names.append({'name': move_name})
+            methods = set()
+            for version in move['version_group_details']:
+                method = version['move_learn_method']['name']
+                if method not in methods:
+                    methods.add(method)
+                    pokemon_moves.append({
+                        'pokemon_id': pokemon_id,
+                        'move_name': move_name,
+                        'move_learn_method': method,
+                    })
+    df_move = pd.DataFrame(move_names).drop_duplicates().sort_values('name')
+    df_pokemon_move = pd.DataFrame(pokemon_moves)
+    return df_move, df_pokemon_move
+
+# Create Pokemon Table
+def create_pokemon_table(df_pokemon, engine):
+    df_pokemon.to_sql(name='pokemon', con=engine, if_exists='replace', index=False)
+    print('Pokemon Table Created')
 
 # Create Type Tables
 def create_type_tables(df_type, df_pokemon_type, engine):
@@ -87,11 +109,13 @@ def create_type_tables(df_type, df_pokemon_type, engine):
 def create_abilities_tables(df_ability, df_pokemon_ability, engine):
     df_ability.to_sql(name='ability', con=engine, if_exists='replace', index=False)
     df_pokemon_ability.to_sql(name='pokemon_ability', con=engine, if_exists='replace', index=False)
+    print("Abilities Tables Created")
 
-# Create Pokemon DataFrame
-def create_pokemon_dataframe(pokemon_raw_list):
-    cleaned = [clean_for_pokemon_table(p) for p in pokemon_raw_list]
-    return pd.DataFrame(cleaned)
+# Create Moves Tables
+def create_moves_tables(df_move, df_pokemon_move, engine):
+    df_move.to_sql(name='move', con=engine, if_exists='replace', index=False)
+    df_pokemon_move.to_sql(name='pokemon_move', con=engine, if_exists='replace', index=False)
+    print("Moves Tables Created")
 
 # Database Setup
 def setup_database_connection():
@@ -107,7 +131,7 @@ def save_dataframe_to_sql(df, engine, table_name='pokemon'):
 # Query and Print
 def query_and_print_table(engine, table_name='pokemon'):
     with engine.connect() as conn:
-        result = conn.execute(text(f'SELECT * FROM {table_name};'))
+        result = conn.execute(text(f'SELECT TOP 5 * FROM {table_name};'))
         for row in result:
             print(row)
 
@@ -121,21 +145,25 @@ def main():
     # pprint(pokemon_raw_list[0])  # For debugging
 
     # Clean for Pokemon table
-    df_pokemon = create_pokemon_dataframe(pokemon_raw_list)
+    df_pokemon = clean_for_pokemon_table(pokemon_raw_list)
 
     # Clean for types and pokemon_type tables
     df_type, df_pokemon_type = clean_for_type_table(pokemon_raw_list)
 
-    # Clean for ability and pokemon ability table
+    # Clean for ability and pokemon_ability table
     df_ability, df_pokemon_ability = clean_for_abilities_tables(pokemon_raw_list)
+
+    # Clean for move and pokemon_move table
+    df_move, df_pokemon_move = clean_for_moves_tables(pokemon_raw_list)
 
     # DB Connection
     engine = setup_database_connection()
 
     # Save Tables
-    save_dataframe_to_sql(df_pokemon, engine, table_name='pokemon')
+    create_pokemon_table(df_pokemon, engine)
     create_type_tables(df_type, df_pokemon_type, engine)
     create_abilities_tables(df_ability, df_pokemon_ability, engine)
+    create_moves_tables(df_move, df_pokemon_move, engine)
 
     # Query to verify
     query_and_print_table(engine, table_name='pokemon')
@@ -143,20 +171,11 @@ def main():
     query_and_print_table(engine, table_name='pokemon_type')
     query_and_print_table(engine, table_name='ability')
     query_and_print_table(engine, table_name='pokemon_ability')
+    query_and_print_table(engine, table_name='move')
+    query_and_print_table(engine, table_name='pokemon_move')
 
 if __name__ == "__main__":
     main()
 
-
-
-'''
-Order:
-type + pokemon_type=DONE
-abilities + pokemon_abilities	
-moves + pokemon_moves	
-items + pokemon_held_items	
-stats	
-evolution_chain / species
-'''
 
 # Add paulaked as collaborator
