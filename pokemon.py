@@ -7,7 +7,6 @@ from sqlalchemy_utils import database_exists, create_database
 # Configuration
 def configure_pandas():
     pd.set_option('display.max_columns', None)
-    pd.set_option('display.max_colwidth', None)
     pd.set_option('display.width', None)
 
 # API Request
@@ -29,7 +28,7 @@ def clean_for_pokemon_table(raw_data):
     pokemon_cleaned = []
     for pokemon in raw_data:
         pokemon_cleaned.append({
-            'id': pokemon['id'],
+            'api_id': pokemon['id'],
             'name': pokemon['name'],
             'height': pokemon['height'],
             'weight': pokemon['weight']
@@ -94,28 +93,77 @@ def clean_for_moves_tables(raw_data):
     df_pokemon_move = pd.DataFrame(pokemon_moves)
     return df_move, df_pokemon_move
 
-# Create Pokemon Table
+# Create Empty Tables
+def create_empty_tables(engine):
+    with engine.begin() as conn:
+        conn.execute(text('DROP TABLE IF EXISTS pokemon_move;'))
+        conn.execute(text('DROP TABLE IF EXISTS pokemon_ability;'))
+        conn.execute(text('DROP TABLE IF EXISTS pokemon_type;'))
+        conn.execute(text('DROP TABLE IF EXISTS move;'))
+        conn.execute(text('DROP TABLE IF EXISTS ability;'))
+        conn.execute(text('DROP TABLE IF EXISTS type;'))
+        conn.execute(text('DROP TABLE IF EXISTS pokemon;'))
+        conn.execute(text('''
+            CREATE TABLE pokemon (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                api_id INT,
+                name VARCHAR(100),
+                height INT,
+                weight INT);'''))
+        conn.execute(text('''
+            CREATE TABLE type (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL);'''))
+        conn.execute(text('''
+            CREATE TABLE ability (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL);'''))
+        conn.execute(text('''
+            CREATE TABLE move (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL);'''))
+        conn.execute(text('''
+            CREATE TABLE pokemon_type (
+                pokemon_id INT,
+                type_id INT,
+                FOREIGN KEY (pokemon_id) REFERENCES pokemon(id),
+                FOREIGN KEY (type_id) REFERENCES type(id));'''))
+        conn.execute(text('''
+            CREATE TABLE pokemon_ability (
+                pokemon_id INT,
+                ability_id INT,
+                FOREIGN KEY (pokemon_id) REFERENCES pokemon(id),
+                FOREIGN KEY (ability_id) REFERENCES ability(id));'''))
+        conn.execute(text('''
+            CREATE TABLE pokemon_move (
+                pokemon_id INT,
+                move_id INT,
+                move_learn_method VARCHAR(100),       
+                FOREIGN KEY (pokemon_id) REFERENCES pokemon(id),
+                FOREIGN KEY (move_id) REFERENCES move(id));'''))
+
+# Populate Pokemon Table
 def create_pokemon_table(df_pokemon, engine):
-    df_pokemon.to_sql(name='pokemon', con=engine, if_exists='replace', index=False)
+    df_pokemon.to_sql(name='pokemon', con=engine, if_exists='append', index=False)
     print('Pokemon Table Created')
 
-# Create Type Tables
+# Populate Type Tables
 def create_type_tables(df_type, df_pokemon_type, engine):
-    df_type.to_sql(name='type', con=engine, if_exists='replace', index=False)
-    df_pokemon_type.to_sql(name='pokemon_type', con=engine, if_exists='replace', index=False)
-    print("Types Tables Created")
+    df_type.to_sql(name='type', con=engine, if_exists='append', index=False)
+    df_pokemon_type.to_sql(name='pokemon_type', con=engine, if_exists='append', index=False)
+    print("Type and Junction Tables Created")
 
-# Create Abilities Tables
+# Populate Abilities Tables
 def create_abilities_tables(df_ability, df_pokemon_ability, engine):
-    df_ability.to_sql(name='ability', con=engine, if_exists='replace', index=False)
-    df_pokemon_ability.to_sql(name='pokemon_ability', con=engine, if_exists='replace', index=False)
-    print("Abilities Tables Created")
+    df_ability.to_sql(name='ability', con=engine, if_exists='append', index=False)
+    df_pokemon_ability.to_sql(name='pokemon_ability', con=engine, if_exists='append', index=False)
+    print("Abilitie and Junction Tables Created")
 
-# Create Moves Tables
+# Populate Moves Tables
 def create_moves_tables(df_move, df_pokemon_move, engine):
-    df_move.to_sql(name='move', con=engine, if_exists='replace', index=False)
-    df_pokemon_move.to_sql(name='pokemon_move', con=engine, if_exists='replace', index=False)
-    print("Moves Tables Created")
+    df_move.to_sql(name='move', con=engine, if_exists='append', index=False)
+    df_pokemon_move.to_sql(name='pokemon_move', con=engine, if_exists='append', index=False)
+    print("Move and Junction Tables Created")
 
 # Database Setup
 def setup_database_connection():
@@ -123,10 +171,6 @@ def setup_database_connection():
     if not database_exists(engine.url):
         create_database(engine.url)
     return engine
-
-# Save to SQL
-def save_dataframe_to_sql(df, engine, table_name='pokemon'):
-    df.to_sql(name=table_name, con=engine, if_exists='replace', index=False)
 
 # Query and Print
 def query_and_print_table(engine, table_name='pokemon'):
@@ -158,6 +202,9 @@ def main():
 
     # DB Connection
     engine = setup_database_connection()
+
+    # Setup Tables
+    create_empty_tables(engine)
 
     # Save Tables
     create_pokemon_table(df_pokemon, engine)
