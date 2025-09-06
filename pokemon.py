@@ -8,8 +8,13 @@ from sqlalchemy_utils import database_exists, create_database
 # API Request
 def get_pokemon_data(pokemon_id):
     url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}'
-    response = requests.get(url)
-    return response.json()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f'Unable to get Pokemon ID {pokemon_id}: {e}')
+        return None
 
 
 # Fetch Multiple Pokemon (Raw Data)
@@ -17,7 +22,10 @@ def fetch_multiple_pokemon(n=10):
     all_pokemon_raw = []
     for i in range(1, n + 1):
         raw_data = get_pokemon_data(i)
-        all_pokemon_raw.append(raw_data)
+        if raw_data:
+            all_pokemon_raw.append(raw_data)
+        else:
+            print(f'Skipping Pokemon ID {i}')
     return all_pokemon_raw
 
 
@@ -96,42 +104,46 @@ def clean_for_moves_tables(raw_data):
 
 # Create Empty Tables
 def create_empty_tables(engine):
-    metadata = MetaData()
+    try:
+        metadata = MetaData()
 
-    pokemon = Table('pokemon', metadata,
-        Column('id', Integer, primary_key=True),
-        Column('name', String(100)),
-        Column('height', Integer),
-        Column('weight', Integer))
+        pokemon = Table('pokemon', metadata,
+            Column('id', Integer, primary_key=True),
+            Column('name', String(100)),
+            Column('height', Integer),
+            Column('weight', Integer))
 
-    type_table = Table('types', metadata,
-        Column('id', Integer, primary_key=True),
-        Column('name', String(100), unique=True))
+        type_table = Table('types', metadata,
+            Column('id', Integer, primary_key=True),
+            Column('name', String(100), unique=True))
 
-    pokemon_type = Table('pokemon_types', metadata,
-        Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
-        Column('type_id', Integer, ForeignKey('types.id', ondelete='CASCADE')))
+        pokemon_type = Table('pokemon_types', metadata,
+            Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
+            Column('type_id', Integer, ForeignKey('types.id', ondelete='CASCADE')))
 
-    ability = Table('abilities', metadata,
-        Column('id', Integer, primary_key=True),
-        Column('name', String(100), unique=True))
+        ability = Table('abilities', metadata,
+            Column('id', Integer, primary_key=True),
+            Column('name', String(100), unique=True))
 
-    pokemon_ability = Table('pokemon_abilities', metadata,
-        Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
-        Column('ability_id', Integer, ForeignKey('abilities.id', ondelete='CASCADE')))
+        pokemon_ability = Table('pokemon_abilities', metadata,
+            Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
+            Column('ability_id', Integer, ForeignKey('abilities.id', ondelete='CASCADE')))
 
-    move = Table('moves', metadata,
-        Column('id', Integer, primary_key=True),
-        Column('name', String(100), unique=True))
+        move = Table('moves', metadata,
+            Column('id', Integer, primary_key=True),
+            Column('name', String(100), unique=True))
 
-    pokemon_move = Table('pokemon_moves', metadata,
-        Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
-        Column('move_id', Integer, ForeignKey('moves.id', ondelete='CASCADE')),
-        Column('move_learn_method', String(100)))
+        pokemon_move = Table('pokemon_moves', metadata,
+            Column('pokemon_id', Integer, ForeignKey('pokemon.id', ondelete='CASCADE')),
+            Column('move_id', Integer, ForeignKey('moves.id', ondelete='CASCADE')),
+            Column('move_learn_method', String(100)))
 
-    metadata.drop_all(engine)
-    metadata.create_all(engine)
-    print('All Tables Created')
+        metadata.drop_all(engine)
+        metadata.create_all(engine)
+        print('All Tables Created')
+    
+    except Exception as e:
+        print(f'There was an error creating the tables: {e}')
 
 
 # Populate Pokemon Table
