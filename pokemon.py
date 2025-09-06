@@ -64,7 +64,7 @@ def clean_for_abilities_tables(raw_data):
             ability_names.append({'name': ability_name})
             pokemon_abilities.append({
                 'pokemon_id': pokemon_id,
-                'ability_name': ability_name
+                'ability_id': ability_name
             })
     df_ability = pd.DataFrame(ability_names).drop_duplicates().sort_values('name')
     df_pokemon_ability = pd.DataFrame(pokemon_abilities)
@@ -86,7 +86,7 @@ def clean_for_moves_tables(raw_data):
                     methods.add(method)
                     pokemon_moves.append({
                         'pokemon_id': pokemon_id,
-                        'move_name': move_name,
+                        'move_id': move_name,
                         'move_learn_method': method,
                     })
     df_move = pd.DataFrame(move_names).drop_duplicates().sort_values('name')
@@ -141,18 +141,36 @@ def create_pokemon_table(df_pokemon, engine):
 # Populate Type Tables
 def create_type_tables(df_type, df_pokemon_type, engine):
     df_type.to_sql(name='type', con=engine, if_exists='append', index=False)
+    with engine.connect() as conn:
+        result = conn.execute(text('SELECT id, name FROM type;')).mappings()
+        id_map = {}
+        for row in result:
+            id_map[row['name']] = row['id']
+        df_pokemon_type['type_id'] = df_pokemon_type['type_id'].map(id_map)
     df_pokemon_type.to_sql(name='pokemon_type', con=engine, if_exists='append', index=False)
     print("Type and Junction Tables Populated")
 
 # Populate Abilities Tables
 def create_abilities_tables(df_ability, df_pokemon_ability, engine):
     df_ability.to_sql(name='ability', con=engine, if_exists='append', index=False)
+    with engine.connect() as conn:
+        result = conn.execute(text('SELECT id, name FROM ability;')).mappings()
+        id_map = {}
+        for row in result:
+            id_map[row['name']] = row['id']
+        df_pokemon_ability['ability_id'] = df_pokemon_ability['ability_id'].map(id_map)
     df_pokemon_ability.to_sql(name='pokemon_ability', con=engine, if_exists='append', index=False)
     print("Ability and Junction Tables Populated")
 
 # Populate Moves Tables
 def create_moves_tables(df_move, df_pokemon_move, engine):
     df_move.to_sql(name='move', con=engine, if_exists='append', index=False)
+    with engine.connect() as conn:
+        result = conn.execute(text('SELECT id, name FROM move;')).mappings()
+        id_map = {}
+        for row in result:
+            id_map[row['name']] = row['id']
+        df_pokemon_move['move_id'] = df_pokemon_move['move_id'].map(id_map)
     df_pokemon_move.to_sql(name='pokemon_move', con=engine, if_exists='append', index=False)
     print("Move and Junction Tables Populated")
 
@@ -196,7 +214,7 @@ def main():
 
     # Setup Tables
     create_empty_tables(engine)
-
+    print(df_ability.head())
     # Save Tables
     create_pokemon_table(df_pokemon, engine)
     create_type_tables(df_type, df_pokemon_type, engine)
