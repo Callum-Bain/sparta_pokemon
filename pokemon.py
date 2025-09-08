@@ -18,7 +18,7 @@ def get_pokemon_data(pokemon_id):
 
 
 # Fetch Multiple Pokemon (Raw Data)
-def fetch_multiple_pokemon(n=10):
+def fetch_multiple_pokemon(n):
     all_pokemon_raw = []
     for i in range(1, n + 1):
         raw_data = get_pokemon_data(i)
@@ -200,7 +200,7 @@ def setup_database_connection():
 
 
 # Query and Print
-def query_and_print_table(engine, table_name='pokemon'):
+def query_and_print_table(engine, table_name):
     with engine.connect() as conn:
         result = conn.execute(text(f'SELECT TOP 5 * FROM {table_name};'))
         for row in result:
