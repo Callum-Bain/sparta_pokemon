@@ -210,7 +210,7 @@ def query_and_print_table(engine, table_name):
 def main():
 
     # Fetch raw data
-    pokemon_raw_list = fetch_multiple_pokemon(10)
+    pokemon_raw_list = fetch_multiple_pokemon(151)
 
     # Clean for Pokemon table
     df_pokemon = clean_for_pokemon_table(pokemon_raw_list)
