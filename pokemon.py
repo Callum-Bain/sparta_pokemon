@@ -1,6 +1,5 @@
 import pandas as pd
 import requests
-from pprint import pprint
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, ForeignKey
 from sqlalchemy_utils import database_exists, create_database
 
