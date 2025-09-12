@@ -16,13 +16,14 @@ def get_pokemon_data(pokemon_id):
         return None
 
 
-# Fetch Multiple Pokemon (Raw Data)
+# Fetch Multiple Pokemon
 def fetch_multiple_pokemon(n):
     all_pokemon_raw = []
     for i in range(1, n + 1):
         raw_data = get_pokemon_data(i)
         if raw_data:
             all_pokemon_raw.append(raw_data)
+            print(f'Fetching Pokemon ID: {i}')
         else:
             print(f'Skipping Pokemon ID {i}')
     return all_pokemon_raw
@@ -210,7 +211,7 @@ def query_and_print_table(engine, table_name):
 def main():
 
     # Fetch raw data
-    pokemon_raw_list = fetch_multiple_pokemon(151)
+    pokemon_raw_list = fetch_multiple_pokemon(10)
 
     # Clean for Pokemon table
     df_pokemon = clean_for_pokemon_table(pokemon_raw_list)
@@ -240,31 +241,31 @@ def main():
     print('')
     print('Sample of Pokemon Table Query:')
     print('[id, name, height, weight]')
-    query_and_print_table(engine, table_name='pokemon')
+    query_and_print_table(engine, 'pokemon')
     print('')
     print('Sample of Types Table Query:')
     print('[id, name]')
-    query_and_print_table(engine, table_name='types')
+    query_and_print_table(engine, 'types')
     print('')
     print('Sample of Pokemon Types Junction Table Query:')
     print('[pokemon_id, type_id]')
-    query_and_print_table(engine, table_name='pokemon_types')
+    query_and_print_table(engine, 'pokemon_types')
     print('')
     print('Sample of Abilities Table Query:')
     print('[id, name]')
-    query_and_print_table(engine, table_name='abilities')
+    query_and_print_table(engine, 'abilities')
     print('')
     print('Sample of Pokemon Abilities Junction Table Query:')
     print('[pokemon_id, ability_id]')
-    query_and_print_table(engine, table_name='pokemon_abilities')
+    query_and_print_table(engine, 'pokemon_abilities')
     print('')
     print('Sample of Moves Table Query:')
     print('[id, name]')
-    query_and_print_table(engine, table_name='moves')
+    query_and_print_table(engine, 'moves')
     print('')
     print('Sample of Pokemon Moves Table Query:')
     print('[pokemon_id, move_id, move_learn_method]')
-    query_and_print_table(engine, table_name='pokemon_moves')
+    query_and_print_table(engine, 'pokemon_moves')
 
 if __name__ == "__main__":
     main()
